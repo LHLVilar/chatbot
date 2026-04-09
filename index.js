@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require("whatsapp-web.js");
+const { Client, LocalAuth } = require("whatsapp-web.js" );
 const express = require("express");
 const qrcode = require("qrcode");
 
@@ -15,14 +15,12 @@ const client = new Client({
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--single-process'
-        ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
+            '--disable-gpu'
+        ]
     }
 });
 
-// Temporary storage for user states (in a real app, use a database)
+// Temporary storage for user states
 const userStates = {};
 
 client.on("qr", (qr) => {
@@ -65,7 +63,7 @@ client.on("message", async msg => {
         const valorTotal = userStates[chatId].valorTotal;
         const resultado = (valorTotal / parcelas).toFixed(2);
         await msg.reply(`Resultado: Dividir ${valorTotal} em ${parcelas} vezes resulta em parcelas de R$ ${resultado} cada. ✅`);
-        delete userStates[chatId]; // Clear state after completion
+        delete userStates[chatId];
     } else {
         await msg.reply("Desculpe, não entendi. Digite 'Simular' para iniciar uma nova simulação.");
     }
