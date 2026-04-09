@@ -1,7 +1,6 @@
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const express = require("express");
 const qrcode = require("qrcode");
-const puppeteer = require("puppeteer"); // 👈 IMPORTANTE
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -12,7 +11,7 @@ const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        executablePath: puppeteer.executablePath(), // 🔥 CORREÇÃO AQUI
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, // 🔥 vindo do Docker
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -31,10 +30,10 @@ client.on("qr", (qr) => {
 
     qrcode.toDataURL(qr, (err, url) => {
         if (err) {
-            console.error("Error generating QR code", err);
+            console.error("Erro ao gerar QR", err);
             return;
         }
-        console.log("QR Code (cole no navegador):");
+        console.log("QR Code:");
         console.log(url);
     });
 });
@@ -44,47 +43,46 @@ client.on("ready", () => {
 });
 
 client.on("auth_failure", msg => {
-    console.error("AUTHENTICATION FAILURE", msg);
+    console.error("AUTH FAILURE", msg);
 });
 
 client.on("disconnected", reason => {
-    console.log("Client was logged out", reason);
-    client.initialize(); // 🔁 reconecta automático
+    console.log("Desconectado:", reason);
+    client.initialize(); // reconecta
 });
 
 client.on("message", async msg => {
-    console.log("MESSAGE RECEIVED", msg.body);
     const chatId = msg.from;
 
     if (msg.body.toLowerCase() === "simular") {
         userStates[chatId] = { step: "awaiting_valor" };
-        await msg.reply("Olá! Para simular uma divisão, me diga o valor total. Ex: 100");
+        await msg.reply("Digite o valor total. Ex: 100");
     } 
-    else if (userStates[chatId] && userStates[chatId].step === "awaiting_valor") {
-        const valorTotal = parseFloat(msg.body.trim());
+    else if (userStates[chatId]?.step === "awaiting_valor") {
+        const valorTotal = parseFloat(msg.body);
 
         if (isNaN(valorTotal)) {
-            await msg.reply("Valor inválido. Digite um número. Ex: 100");
+            await msg.reply("Valor inválido.");
             return;
         }
 
         userStates[chatId].valorTotal = valorTotal;
         userStates[chatId].step = "awaiting_parcelas";
 
-        await msg.reply(`Ok, você quer dividir ${valorTotal}. Em quantas vezes? Ex: 4`);
+        await msg.reply("Em quantas vezes?");
     } 
-    else if (userStates[chatId] && userStates[chatId].step === "awaiting_parcelas") {
-        const parcelas = parseInt(msg.body.trim());
+    else if (userStates[chatId]?.step === "awaiting_parcelas") {
+        const parcelas = parseInt(msg.body);
 
         if (isNaN(parcelas) || parcelas <= 0) {
-            await msg.reply("Número inválido. Digite um inteiro positivo. Ex: 4");
+            await msg.reply("Número inválido.");
             return;
         }
 
         const valorTotal = userStates[chatId].valorTotal;
         const resultado = (valorTotal / parcelas).toFixed(2);
 
-        await msg.reply(`Resultado: ${parcelas}x de R$ ${resultado} ✅`);
+        await msg.reply(`Resultado: ${parcelas}x de R$ ${resultado}`);
 
         delete userStates[chatId];
     } 
@@ -96,7 +94,7 @@ client.on("message", async msg => {
 client.initialize();
 
 app.get("/", (req, res) => {
-    res.send("WhatsApp Chatbot is running!");
+    res.send("Bot rodando!");
 });
 
 app.listen(port, () => {
