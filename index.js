@@ -10,10 +10,15 @@ app.use(express.json());
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
+        headless: true,
         args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox"
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process'
         ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
     }
 });
 
@@ -27,7 +32,7 @@ client.on("qr", (qr) => {
             console.error("Error generating QR code", err);
             return;
         }
-        console.log("QR Code URL:", url); // This URL can be displayed in a web interface or logged
+        console.log("QR Code URL:", url);
     });
 });
 
