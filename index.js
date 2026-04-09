@@ -1,9 +1,9 @@
-const { Client, LocalAuth } = require("whatsapp-web.js" );
+const { Client, LocalAuth } = require("whatsapp-web.js");
 const express = require("express");
 const qrcode = require("qrcode");
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 10000;
 
 app.use(express.json());
 
@@ -15,8 +15,10 @@ const client = new Client({
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu'
-        ]
+            '--disable-gpu',
+            '--disable-software-rasterizer'
+        ],
+        executablePath: '/usr/bin/chromium-browser'
     }
 });
 
