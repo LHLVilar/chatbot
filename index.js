@@ -1,6 +1,7 @@
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const express = require("express");
 const qrcode = require("qrcode");
+const puppeteer = require("puppeteer"); // 👈 IMPORTANTE
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -11,6 +12,7 @@ const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        executablePath: puppeteer.executablePath(), // 🔥 CORREÇÃO AQUI
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -19,7 +21,6 @@ const client = new Client({
             '--disable-software-rasterizer',
             '--disable-extensions'
         ]
-        // 🚫 REMOVIDO executablePath (isso quebrava no Render)
     }
 });
 
@@ -33,7 +34,7 @@ client.on("qr", (qr) => {
             console.error("Error generating QR code", err);
             return;
         }
-        console.log("QR Code (copie e cole no navegador):");
+        console.log("QR Code (cole no navegador):");
         console.log(url);
     });
 });
@@ -48,7 +49,7 @@ client.on("auth_failure", msg => {
 
 client.on("disconnected", reason => {
     console.log("Client was logged out", reason);
-    client.initialize(); // 🔁 tenta reconectar automaticamente
+    client.initialize(); // 🔁 reconecta automático
 });
 
 client.on("message", async msg => {
@@ -57,35 +58,38 @@ client.on("message", async msg => {
 
     if (msg.body.toLowerCase() === "simular") {
         userStates[chatId] = { step: "awaiting_valor" };
-        await msg.reply("Olá! Para simular uma divisão, por favor, me diga o valor total que deseja dividir. Ex: 100");
-    } else if (userStates[chatId] && userStates[chatId].step === "awaiting_valor") {
+        await msg.reply("Olá! Para simular uma divisão, me diga o valor total. Ex: 100");
+    } 
+    else if (userStates[chatId] && userStates[chatId].step === "awaiting_valor") {
         const valorTotal = parseFloat(msg.body.trim());
 
         if (isNaN(valorTotal)) {
-            await msg.reply("Valor inválido. Por favor, digite um número. Ex: 100");
+            await msg.reply("Valor inválido. Digite um número. Ex: 100");
             return;
         }
 
         userStates[chatId].valorTotal = valorTotal;
         userStates[chatId].step = "awaiting_parcelas";
 
-        await msg.reply(`Ok, você quer dividir ${valorTotal}. Agora, em quantas vezes deseja parcelar? Ex: 4`);
-    } else if (userStates[chatId] && userStates[chatId].step === "awaiting_parcelas") {
+        await msg.reply(`Ok, você quer dividir ${valorTotal}. Em quantas vezes? Ex: 4`);
+    } 
+    else if (userStates[chatId] && userStates[chatId].step === "awaiting_parcelas") {
         const parcelas = parseInt(msg.body.trim());
 
         if (isNaN(parcelas) || parcelas <= 0) {
-            await msg.reply("Número de parcelas inválido. Por favor, digite um número inteiro positivo. Ex: 4");
+            await msg.reply("Número inválido. Digite um inteiro positivo. Ex: 4");
             return;
         }
 
         const valorTotal = userStates[chatId].valorTotal;
         const resultado = (valorTotal / parcelas).toFixed(2);
 
-        await msg.reply(`Resultado: Dividir ${valorTotal} em ${parcelas} vezes resulta em parcelas de R$ ${resultado} cada. ✅`);
+        await msg.reply(`Resultado: ${parcelas}x de R$ ${resultado} ✅`);
 
         delete userStates[chatId];
-    } else {
-        await msg.reply("Desculpe, não entendi. Digite 'Simular' para iniciar uma nova simulação.");
+    } 
+    else {
+        await msg.reply("Digite 'Simular' para começar.");
     }
 });
 
