@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: whatsapp-chatbot
+    env: node
+    buildCommand: npm install && apt-get update && apt-get install -y chromium-browser
+    startCommand: node index.js
