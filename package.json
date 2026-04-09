@@ -9,8 +9,7 @@
   "dependencies": {
     "express": "^4.21.2",
     "whatsapp-web.js": "^1.25.0",
-    "qrcode": "^1.5.3",
-    "puppeteer": "^21.0.0"
+    "qrcode": "^1.5.3"
   },
   "engines": {
     "node": "18.x"
