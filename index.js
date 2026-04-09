@@ -1,71 +1,80 @@
-const express = require('express');
-const twilio = require('twilio');
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const express = require("express");
+const qrcode = require("qrcode");
 
 const app = express();
 const port = process.env.PORT || 10000;
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
 
-// Configurar credenciais do Twilio
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-extensions'
+        ],
+        executablePath: '/usr/bin/chromium'
+    }
+});
 
-// Armazenar estados dos usuários
 const userStates = {};
 
-// Webhook para receber mensagens
-app.post('/webhook', (req, res) => {
-    const incomingMessage = req.body.Body;
-    const from = req.body.From;
-    const to = req.body.To;
-
-    console.log(`Mensagem de ${from}: ${incomingMessage}`);
-
-    let responseMessage = '';
-
-    if (incomingMessage.toLowerCase() === 'simular') {
-        userStates[from] = { step: 'awaiting_valor' };
-        responseMessage = 'Olá! Para simular uma divisão, por favor, me diga o valor total que deseja dividir. Ex: 100';
-    } else if (userStates[from] && userStates[from].step === 'awaiting_valor') {
-        const valorTotal = parseFloat(incomingMessage.trim());
-        if (isNaN(valorTotal)) {
-            responseMessage = 'Valor inválido. Por favor, digite um número. Ex: 100';
-        } else {
-            userStates[from].valorTotal = valorTotal;
-            userStates[from].step = 'awaiting_parcelas';
-            responseMessage = `Ok, você quer dividir ${valorTotal}. Agora, em quantas vezes deseja parcelar? Ex: 4`;
+client.on("qr", (qr) => {
+    console.log("QR RECEIVED", qr);
+    qrcode.toDataURL(qr, (err, url) => {
+        if (err) {
+            console.error("Error generating QR code", err);
+            return;
         }
-    } else if (userStates[from] && userStates[from].step === 'awaiting_parcelas') {
-        const parcelas = parseInt(incomingMessage.trim());
-        if (isNaN(parcelas) || parcelas <= 0) {
-            responseMessage = 'Número de parcelas inválido. Por favor, digite um número inteiro positivo. Ex: 4';
-        } else {
-            const valorTotal = userStates[from].valorTotal;
-            const resultado = (valorTotal / parcelas).toFixed(2);
-            responseMessage = `Resultado: Dividir ${valorTotal} em ${parcelas} vezes resulta em parcelas de R$ ${resultado} cada. ✅`;
-            delete userStates[from];
-        }
-    } else {
-        responseMessage = "Desculpe, não entendi. Digite 'Simular' para iniciar uma nova simulação.";
-    }
-
-    // Enviar resposta
-    client.messages.create({
-        body: responseMessage,
-        from: to,
-        to: from
-    }).then(() => {
-        res.send('<Response></Response>');
-    }).catch(err => {
-        console.error('Erro ao enviar mensagem:', err);
-        res.status(500).send('Erro ao enviar mensagem');
+        console.log("QR Code URL:", url);
     });
 });
 
-// Rota de teste
-app.get('/', (req, res) => {
-    res.send('WhatsApp Chatbot com Twilio está rodando!');
+client.on("ready", () => {
+    console.log("Client is ready!");
+});
+
+client.on("message", async msg => {
+    console.log("MESSAGE RECEIVED", msg.body);
+    const chatId = msg.from;
+
+    if (msg.body.toLowerCase() === "simular") {
+        userStates[chatId] = { step: "awaiting_valor" };
+        await msg.reply("Olá! Para simular uma divisão, por favor, me diga o valor total que deseja dividir. Ex: 100");
+    } else if (userStates[chatId] && userStates[chatId].step === "awaiting_valor") {
+        const valorTotal = parseFloat(msg.body.trim());
+        if (isNaN(valorTotal)) {
+            await msg.reply("Valor inválido. Por favor, digite um número. Ex: 100");
+            return;
+        }
+        userStates[chatId].valorTotal = valorTotal;
+        userStates[chatId].step = "awaiting_parcelas";
+        await msg.reply(`Ok, você quer dividir ${valorTotal}. Agora, em quantas vezes deseja parcelar? Ex: 4`);
+    } else if (userStates[chatId] && userStates[chatId].step === "awaiting_parcelas") {
+        const parcelas = parseInt(msg.body.trim());
+        if (isNaN(parcelas) || parcelas <= 0) {
+            await msg.reply("Número de parcelas inválido. Por favor, digite um número inteiro positivo. Ex: 4");
+            return;
+        }
+        const valorTotal = userStates[chatId].valorTotal;
+        const resultado = (valorTotal / parcelas).toFixed(2);
+        await msg.reply(`Resultado: Dividir ${valorTotal} em ${parcelas} vezes resulta em parcelas de R$ ${resultado} cada. ✅`);
+        delete userStates[chatId];
+    } else {
+        await msg.reply("Desculpe, não entendi. Digite 'Simular' para iniciar uma nova simulação.");
+    }
+});
+
+client.initialize();
+
+app.get("/", (req, res) => {
+    res.send("WhatsApp Chatbot is running!");
 });
 
 app.listen(port, () => {
