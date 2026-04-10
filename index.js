@@ -7,18 +7,21 @@ const port = process.env.PORT || 10000;
 
 app.use(express.json());
 
+console.log("🚀 Iniciando aplicação...");
+
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, // 🔥 vindo do Docker
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--disable-software-rasterizer',
-            '--disable-extensions'
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process'
         ]
     }
 });
@@ -26,29 +29,37 @@ const client = new Client({
 const userStates = {};
 
 client.on("qr", (qr) => {
-    console.log("QR RECEIVED");
+    console.log("📲 QR RECEIVED");
 
     qrcode.toDataURL(qr, (err, url) => {
         if (err) {
-            console.error("Erro ao gerar QR", err);
+            console.error("Erro QR:", err);
             return;
         }
-        console.log("QR Code:");
+        console.log("👉 QR CODE:");
         console.log(url);
     });
 });
 
-client.on("ready", () => {
-    console.log("Client is ready!");
+client.on("loading_screen", (percent, message) => {
+    console.log(`⏳ Loading: ${percent}% - ${message}`);
+});
+
+client.on("authenticated", () => {
+    console.log("✅ AUTHENTICATED");
 });
 
 client.on("auth_failure", msg => {
-    console.error("AUTH FAILURE", msg);
+    console.error("❌ AUTH FAILURE:", msg);
+});
+
+client.on("ready", () => {
+    console.log("🔥 CLIENT READY");
 });
 
 client.on("disconnected", reason => {
-    console.log("Desconectado:", reason);
-    client.initialize(); // reconecta
+    console.log("⚠️ Desconectado:", reason);
+    client.initialize();
 });
 
 client.on("message", async msg => {
@@ -83,7 +94,6 @@ client.on("message", async msg => {
         const resultado = (valorTotal / parcelas).toFixed(2);
 
         await msg.reply(`Resultado: ${parcelas}x de R$ ${resultado}`);
-
         delete userStates[chatId];
     } 
     else {
@@ -91,6 +101,7 @@ client.on("message", async msg => {
     }
 });
 
+console.log("🔌 Inicializando WhatsApp...");
 client.initialize();
 
 app.get("/", (req, res) => {
@@ -98,5 +109,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`🌐 Server running on port ${port}`);
 });
