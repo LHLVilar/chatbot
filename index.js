@@ -12,7 +12,7 @@ console.log("🚀 Iniciando aplicação...");
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        headless: true,
+        headless: "new", // 🔥 importante
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
         args: [
             '--no-sandbox',
@@ -21,7 +21,15 @@ const client = new Client({
             '--disable-gpu',
             '--no-first-run',
             '--no-zygote',
-            '--single-process'
+            '--single-process',
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+            '--disable-sync',
+            '--metrics-recording-only',
+            '--mute-audio',
+            '--no-default-browser-check'
         ]
     }
 });
@@ -49,12 +57,12 @@ client.on("authenticated", () => {
     console.log("✅ AUTHENTICATED");
 });
 
-client.on("auth_failure", msg => {
-    console.error("❌ AUTH FAILURE:", msg);
-});
-
 client.on("ready", () => {
     console.log("🔥 CLIENT READY");
+});
+
+client.on("auth_failure", msg => {
+    console.error("❌ AUTH FAILURE:", msg);
 });
 
 client.on("disconnected", reason => {
